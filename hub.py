@@ -67,6 +67,3 @@ def get_model(model_name, device='cuda:0'):
         model.device = device
 
     return model
-
-model = get_model('BEATs_iter1')
-acts = model.extract_activations_from_array(torch.randn((1,16000)))
