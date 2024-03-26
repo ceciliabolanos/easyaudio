@@ -38,12 +38,12 @@ class BEATsWrapped:
     def extract_activations_from_array(self, x):
         with torch.no_grad():
             if isinstance(x, np.ndarray):
-                x = torch.from_numpy(x)
+                x = torch.from_numpy(x.astype(np.float32))
             if x.ndim == 1:
                 x = x.unsqueeze(0)
             x = x.to(self.device)
             rep, pad, feats = self.model.extract_features(x, padding_mask = torch.zeros((1, x.shape[1]), device=self.device), tgt_layer=100)
-            feats = [f[0] for f in feats]
+            feats = [f[0][:,0,:] for f in feats]
         return feats
     
     def extract_activations_from_filename(self, filename):
