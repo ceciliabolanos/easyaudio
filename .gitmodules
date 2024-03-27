@@ -1,0 +1,3 @@
+[submodule "models/byola"]
+	path = models/byola
+	url = https://github.com/nttcslab/byol-a.git
