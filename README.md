@@ -40,3 +40,12 @@ features = model.extract_activations_from_filename('example.wav') #Given a wav f
   Available models: *byola_512, byola_1024, byola_2048*
   
   Extraction points: activations are extracted from the input of each MaxPooling2D layer and the output of each Linear layer. The last activation in the list corresponds to the original BYOL-A features (final output) that is pooled over time/freq.
+
+##### EnCodecMAE
+  Paper: https://arxiv.org/abs/2309.07391
+
+  Official code: https://github.com/habla-liaa/encodecmae
+
+  Available models: *encodecmae_base, encodecmae_base-st, encodecmae_large, encodecmae_large-st, encodecmae_small
+
+  Extraction points: activations are extracted from the output of each transformer layer of the Encoder network.
