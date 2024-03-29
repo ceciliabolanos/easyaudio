@@ -9,6 +9,7 @@ from models.byola.byol_a.models import AudioNTT2020
 import librosa
 import numpy as np
 import torchaudio
+from encodecmae import load_model
 
 def download_blob(url, filename):
     response = requests.get(url, stream=True)
@@ -133,11 +134,23 @@ class BYOLAWrapped:
         activations = [activations[k] for k in act_keys]
         return activations
 
+class EnCodecMAEWrapped:
+    def __init__(self, model, device='cuda:0'):
+        self.model = load_model(model.split('encodecmae_')[-1], device=device)
+    
+    def extract_activations_from_filename(self, filename):
+        return self.model.extract_features_from_file(filename, layer='all')
+    
+    def extract_activations_from_array(self, x):
+        return self.model.extract_features_from_array(x, layer='all')
+
 def get_model(model_name, device='cuda:0'):
     Path('ckpts').mkdir(parents=True, exist_ok=True)
     if model_name.startswith('BEATs'):
         model = BEATsWrapped(model_name)
     elif model_name.startswith('byola'):
         model = BYOLAWrapped(model_name)
+    elif model_name.startswith('encodecmae'):
+        model = EnCodecMAEWrapped(model_name)
 
     return model

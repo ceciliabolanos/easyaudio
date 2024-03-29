@@ -1,3 +1,6 @@
 [submodule "models/byola"]
 	path = models/byola
 	url = https://github.com/nttcslab/byol-a.git
+[submodule "models/encodecmae"]
+	path = models/encodecmae
+	url = https://github.com/habla-liaa/encodecmae.git
