@@ -46,6 +46,6 @@ features = model.extract_activations_from_filename('example.wav') #Given a wav f
 
   Official code: https://github.com/habla-liaa/encodecmae
 
-  Available models: *encodecmae_base, encodecmae_base-st, encodecmae_large, encodecmae_large-st, encodecmae_small
+  Available models: *encodecmae_base, encodecmae_base-st, encodecmae_large, encodecmae_large-st, encodecmae_small*
 
   Extraction points: activations are extracted from the output of each transformer layer of the Encoder network.
