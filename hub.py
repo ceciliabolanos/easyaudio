@@ -41,7 +41,7 @@ class BEATsWrapped:
         ckpt_path = Path('ckpts/{}.pt'.format(model))
         if model in beats_paths:
             if not ckpt_path.exists():
-                download_blob(beats_paths[model_name], ckpt_path)
+                download_blob(beats_paths[model], ckpt_path)
             checkpoint = torch.load(ckpt_path)
             cfg = BEATsConfig(checkpoint['cfg'])
             self.cfg = cfg

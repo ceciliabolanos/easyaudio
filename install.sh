@@ -1,4 +1,3 @@
-git submodule add https://github.com/nttcslab/byol-a.git models/byola
 curl -O https://raw.githubusercontent.com/lucidrains/byol-pytorch/2aa84ee18fafecaf35637da4657f92619e83876d/byol_pytorch/byol_pytorch.py
 patch < models/byola/byol_a/byol_pytorch.diff
 mv byol_pytorch.py models/byola/byol_a
