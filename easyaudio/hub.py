@@ -4,7 +4,7 @@ import librosa
 import numpy as np
 import torchaudio
 from loguru import logger
-from models import *
+from .models import *
 
 available_models = {'BEATs': BEATsWrapped,
           'byola': BYOLAWrapped,

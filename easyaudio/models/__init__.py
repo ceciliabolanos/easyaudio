@@ -1,7 +1,7 @@
-from models.beats.BEATs import BEATs, BEATsConfig
-from models.byola.byol_a.common import load_yaml_config
-from models.byola.byol_a.augmentations import PrecomputedNorm
-from models.byola.byol_a.models import AudioNTT2020
+from .beats.BEATs import BEATs, BEATsConfig
+from .byol_a.common import load_yaml_config
+from .byol_a.augmentations import PrecomputedNorm
+from .byol_a.models import AudioNTT2020
 from encodecmae import load_model
 
 from utils import download_blob
