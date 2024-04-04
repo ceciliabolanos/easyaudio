@@ -1,10 +1,10 @@
 from .beats.BEATs import BEATs, BEATsConfig
-from .byol_a.common import load_yaml_config
-from .byol_a.augmentations import PrecomputedNorm
-from .byol_a.models import AudioNTT2020
+from .byola.byol_a.common import load_yaml_config
+from .byola.byol_a.augmentations import PrecomputedNorm
+from .byola.byol_a.models import AudioNTT2020
 from encodecmae import load_model
 
-from utils import download_blob
+from easyaudio.utils import download_blob
 
 import torchaudio
 import torch
@@ -58,7 +58,8 @@ class BEATsWrapped:
 
 class BYOLAWrapped:
     def __init__(self, model, device='cuda:0'):
-        cfg = load_yaml_config('models/byola/config.yaml')
+        config_path = Path(Path(__file__).parent,'byola/config.yaml')
+        cfg = load_yaml_config(config_path)
         stats = [-5.4919195,  5.0389895]
         self.to_melspec = torchaudio.transforms.MelSpectrogram(
                                 sample_rate=cfg.sample_rate,
@@ -74,14 +75,15 @@ class BYOLAWrapped:
         if d not in [512, 1024, 2048]:
             raise Exception('No weights available for BYOLA with d={}'.format(d))
         self.model = AudioNTT2020(d=d).to(device)
-        self.model.load_weight('models/byola/pretrained_weights/AudioNTT2020-BYOLA-64x96d{}.pth'.format(d), device)
+        self.model.load_weight(Path(Path(__file__).parent,'byola/pretrained_weights/AudioNTT2020-BYOLA-64x96d{}.pth'.format(d)), device)
         cfg.d = d
         self.cfg = cfg
         self.device = device
 
     @staticmethod
     def list_available_models():
-        byola_paths = {'byola_{}'.format(d): 'models/byola/pretrained_weights/AudioNTT2020-BYOLA-64x96d{}.pth'.format(d) for d in [512, 1024, 2048]}
+        models_path = str(Path(__file__).parent.resolve())
+        byola_paths = {'byola_{}'.format(d): '{}/models/byola/pretrained_weights/AudioNTT2020-BYOLA-64x96d{}.pth'.format(models_path,d) for d in [512, 1024, 2048]}
         return byola_paths
 
     def extract_activations_from_filename(self, filename):
