@@ -1,6 +1,6 @@
-[submodule "models/byola"]
-	path = models/byola
+[submodule "easyaudio/models/byola"]
+	path = easyaudio/models/byola
 	url = https://github.com/nttcslab/byol-a.git
-[submodule "models/encodecmae"]
-	path = models/encodecmae
+[submodule "easyaudio/models/encodecmae"]
+	path = easyaudio/models/encodecmae
 	url = https://github.com/habla-liaa/encodecmae.git
