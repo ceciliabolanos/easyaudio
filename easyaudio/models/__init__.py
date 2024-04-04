@@ -9,11 +9,14 @@ from easyaudio.utils import download_blob
 import torchaudio
 import torch
 from pathlib import Path
+import numpy as np
 
 class BEATsWrapped:
     def __init__(self, model, device='cuda:0'):
         beats_paths = self.list_available_models()
-        ckpt_path = Path('ckpts/{}.pt'.format(model))
+        cache_path = Path('~/.cache/easyaudio/ckpts').expanduser()
+        cache_path.mkdir(parents=True, exist_ok=True)
+        ckpt_path = Path(cache_path,'{}.pt'.format(model))
         if model in beats_paths:
             if not ckpt_path.exists():
                 download_blob(beats_paths[model], ckpt_path)
@@ -26,6 +29,7 @@ class BEATsWrapped:
             BEATs_model.to(device)
             self.model = BEATs_model
             self.device = device
+            self.sr = 16000
         else:
             raise Exception('Unrecognized model. Available BEATs models are: {}'.format(beats_paths.keys()))
 
@@ -48,7 +52,7 @@ class BEATsWrapped:
                 x = x.unsqueeze(0)
             x = x.to(self.device)
             rep, pad, feats = self.model.extract_features(x, padding_mask = torch.zeros((1, x.shape[1]), device=self.device), tgt_layer=100)
-            feats = [f[0][:,0,:] for f in feats]
+            feats = [f[0][:,0,:].detach().cpu().numpy() for f in feats]
         return feats
     
     def extract_activations_from_filename(self, filename):
@@ -79,6 +83,7 @@ class BYOLAWrapped:
         cfg.d = d
         self.cfg = cfg
         self.device = device
+        self.sr = cfg.sample_rate
 
     @staticmethod
     def list_available_models():
@@ -124,18 +129,23 @@ class BYOLAWrapped:
             v.remove()
 
         act_keys = ['features_3', 'features_7', 'features_11', 'fc_0', 'fc_3', 'features']
-        activations = [activations[k] for k in act_keys]
+        activations = [activations[k].detach().cpu().numpy() for k in act_keys]
         return activations
 
 class EnCodecMAEWrapped:
     def __init__(self, model, device='cuda:0'):
         self.model = load_model(model.split('encodecmae_')[-1], device=device)
+        self.sr = 24000
     
     def extract_activations_from_filename(self, filename):
-        return self.model.extract_features_from_file(filename, layer='all')
+        acts = self.model.extract_features_from_file(filename, layer='all')
+        acts = [x for x in acts]
+        return acts
     
     def extract_activations_from_array(self, x):
-        return self.model.extract_features_from_array(x, layer='all')
+        acts = self.model.extract_features_from_array(x, layer='all')
+        acts = [x for x in acts]
+        return acts
 
     @staticmethod
     def list_available_models():
