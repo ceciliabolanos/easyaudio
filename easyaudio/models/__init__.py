@@ -10,16 +10,16 @@ import torchaudio
 import torch
 from pathlib import Path
 import numpy as np
+import gc
+
+from huggingface_hub import HfFileSystem, hf_hub_download
+
 
 class BEATsWrapped:
     def __init__(self, model, device='cuda:0'):
         beats_paths = self.list_available_models()
-        cache_path = Path('~/.cache/easyaudio/ckpts').expanduser()
-        cache_path.mkdir(parents=True, exist_ok=True)
-        ckpt_path = Path(cache_path,'{}.pt'.format(model))
         if model in beats_paths:
-            if not ckpt_path.exists():
-                download_blob(beats_paths[model], ckpt_path)
+            ckpt_path = hf_hub_download(repo_id='lpepino/beats_ckpts', filename='{}.pt'.format(model))
             checkpoint = torch.load(ckpt_path)
             cfg = BEATsConfig(checkpoint['cfg'])
             self.cfg = cfg
@@ -35,14 +35,8 @@ class BEATsWrapped:
 
     @staticmethod
     def list_available_models():
-        beats_paths = {
-         'BEATs_iter1': "https://valle.blob.core.windows.net/share/BEATs/BEATs_iter1.pt?sv=2020-08-04&st=2023-03-01T07%3A51%3A05Z&se=2033-03-02T07%3A51%3A00Z&sr=c&sp=rl&sig=QJXmSJG9DbMKf48UDIU1MfzIro8HQOf3sqlNXiflY1I%3D",
-         'BEATs_iter2': "https://valle.blob.core.windows.net/share/BEATs/BEATs_iter2.pt?sv=2020-08-04&st=2023-03-01T07%3A51%3A05Z&se=2033-03-02T07%3A51%3A00Z&sr=c&sp=rl&sig=QJXmSJG9DbMKf48UDIU1MfzIro8HQOf3sqlNXiflY1I%3D",
-         'BEATs_iter3': "https://valle.blob.core.windows.net/share/BEATs/BEATs_iter3.pt?sv=2020-08-04&st=2023-03-01T07%3A51%3A05Z&se=2033-03-02T07%3A51%3A00Z&sr=c&sp=rl&sig=QJXmSJG9DbMKf48UDIU1MfzIro8HQOf3sqlNXiflY1I%3D",
-         'BEATs_iter3+_AS20K': "https://valle.blob.core.windows.net/share/BEATs/BEATs_iter3_plus_AS20K.pt?sv=2020-08-04&st=2023-03-01T07%3A51%3A05Z&se=2033-03-02T07%3A51%3A00Z&sr=c&sp=rl&sig=QJXmSJG9DbMKf48UDIU1MfzIro8HQOf3sqlNXiflY1I%3D",
-         'BEATs_iter3+_AS2M': "https://valle.blob.core.windows.net/share/BEATs/BEATs_iter3_plus_AS2M.pt?sv=2020-08-04&st=2023-03-01T07%3A51%3A05Z&se=2033-03-02T07%3A51%3A00Z&sr=c&sp=rl&sig=QJXmSJG9DbMKf48UDIU1MfzIro8HQOf3sqlNXiflY1I%3D",
-         }
-        return beats_paths
+        fs = HfFileSystem()
+        return {x['name'].split('/')[-1].split('.pt')[0]: x['name'] for x in fs.ls('lpepino/beats_ckpts') if x['name'].endswith('.pt')}
 
     def extract_activations_from_array(self, x):
         with torch.no_grad():
@@ -79,11 +73,16 @@ class BYOLAWrapped:
         if d not in [512, 1024, 2048]:
             raise Exception('No weights available for BYOLA with d={}'.format(d))
         self.model = AudioNTT2020(d=d).to(device)
+        self.model.eval()
         self.model.load_weight(Path(Path(__file__).parent,'byola/pretrained_weights/AudioNTT2020-BYOLA-64x96d{}.pth'.format(d)), device)
         cfg.d = d
         self.cfg = cfg
         self.device = device
         self.sr = cfg.sample_rate
+        self._hooks = {}
+        self._activations = {}
+        self.hook_handlers = []
+        self.register_hooks()
 
     @staticmethod
     def list_available_models():
@@ -97,24 +96,32 @@ class BYOLAWrapped:
         acts = self.extract_activations_from_array(wav)
         return acts
 
-    def extract_activations_from_array(self, x):
-        activations = {}
-        hooks = {}
+    def hook_fn(self, layer_name):
+        #Grab outputs of linear layers and features before downsampling
+        def hook(m,i,o):
+            if m.__class__.__name__ == 'MaxPool2d':
+                self._activations[layer_name] = i[0].detach().cpu().numpy()
+            elif m.__class__.__name__ == 'Linear':
+                self._activations[layer_name] = o.detach().cpu().numpy()
+        return hook
 
-        def hook_fn(layer_name):
-            #Grab outputs of linear layers and features before downsampling
-            def hook(m,i,o):
-                if m.__class__.__name__ == 'MaxPool2d':
-                    activations[layer_name] = i[0]
-                elif m.__class__.__name__ == 'Linear':
-                    activations[layer_name] = o
-            return hook
-        
+    def register_hooks(self):
         for k,v in self.model.features._modules.items():
-            hooks['features_{}'.format(k)] = v.register_forward_hook(hook_fn('features_{}'.format(k)))
+            hook = self.hook_fn('features_{}'.format(k))
+            self._hooks['features_{}'.format(k)] = v.register_forward_hook(hook)
+            self.hook_handlers.append(hook)
         for k,v in self.model.fc._modules.items():
-            hooks['fc_{}'.format(k)] = v.register_forward_hook(hook_fn('fc_{}'.format(k)))
-        
+            hook = self.hook_fn('fc_{}'.format(k))
+            self._hooks['fc_{}'.format(k)] = v.register_forward_hook(hook)
+            self.hook_handlers.append(hook)
+
+    def remove_hooks(self):
+        for k,v in self._hooks.items():
+            v.remove()
+        del self.hook_handlers[:]
+
+    def extract_activations_from_array(self, x):
+        self._activations = {}
         with torch.no_grad():
             if isinstance(x, np.ndarray):
                 x = torch.from_numpy(x.astype(np.float32))
@@ -123,14 +130,12 @@ class BYOLAWrapped:
             x = x.to(self.device)
             lms = self.normalizer((self.to_melspec(x) + torch.finfo(torch.float).eps).log())
             features = self.model(lms.unsqueeze(0))
-            activations['features'] = features
+            self._activations['features'] = features.detach().cpu().numpy()
         
-        for k,v in hooks.items():
-            v.remove()
-
         act_keys = ['features_3', 'features_7', 'features_11', 'fc_0', 'fc_3', 'features']
-        activations = [activations[k].detach().cpu().numpy() for k in act_keys]
-        return activations
+        acts = [self._activations[k] for k in act_keys]
+
+        return acts
 
 class EnCodecMAEWrapped:
     def __init__(self, model, device='cuda:0'):
