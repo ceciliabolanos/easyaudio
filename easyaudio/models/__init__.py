@@ -2,7 +2,7 @@ from .beats.BEATs import BEATs, BEATsConfig
 from .byola.byol_a.common import load_yaml_config
 from .byola.byol_a.augmentations import PrecomputedNorm
 from .byola.byol_a.models import AudioNTT2020
-from .encodecmae import load_model
+from .encodecmae.encodecmae import load_model
 
 from easyaudio.utils import download_blob
 
