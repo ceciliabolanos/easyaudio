@@ -3,7 +3,7 @@ Easy interface for extracting features from audio models.
 #### Instructions:
 - Git clone this repository and its submodules:
   ```
-  git clone --recurse-submodules https://github.com/mrpep/easy-audio-embeddings.git
+  git clone --recurse-submodules https://github.com/mrpep/easyaudio.git
   ```
 - Run install.sh to apply patches to BYOL-A models
 - Run ```pip install -e .```
